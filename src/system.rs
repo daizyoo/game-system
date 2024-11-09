@@ -1,7 +1,7 @@
 use std::any::{Any, TypeId};
 use std::marker::PhantomData;
 
-pub trait Arg: Any + 'static {}
+use crate::arg::Arg;
 
 pub trait System {
     fn arg_type(&self) -> Vec<TypeId>;

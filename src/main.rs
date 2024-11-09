@@ -1,57 +1,15 @@
-use std::any::{Any, TypeId};
+use std::any::Any;
+
+use arg::*;
 use system::*;
 
+mod arg;
 mod system;
-
-trait ResourceTrait {
-    fn get_type(&self) -> TypeId;
-    fn to_any(&self) -> &dyn Any;
-}
-
-trait QueryTrait {
-    fn get_type(&self) -> TypeId;
-    fn to_any(&self) -> &dyn Any;
-}
-
-struct Query<T: Component> {
-    components: Vec<T>,
-}
-
-struct Resource<T: Res> {
-    data: T,
-}
-
-impl<T: Component> Arg for Query<T> {}
-impl<T: Res> Arg for Resource<T> {}
-
-impl<T: Component> QueryTrait for Query<T> {
-    fn get_type(&self) -> TypeId {
-        self.type_id()
-    }
-    fn to_any(&self) -> &dyn Any {
-        self
-    }
-}
-impl<T: Res> ResourceTrait for Resource<T> {
-    fn get_type(&self) -> TypeId {
-        self.type_id()
-    }
-    fn to_any(&self) -> &dyn Any {
-        self
-    }
-}
-
-trait Component: Any + 'static {}
-
-trait Res: Any + 'static {}
-
-impl<T: Component> Query<T> {}
-impl<T: Res> Resource<T> {}
 
 struct App {
     systems: Vec<Box<dyn System>>,
-    querys: Vec<Box<dyn QueryTrait>>,
-    resources: Vec<Box<dyn ResourceTrait>>,
+    querys: Vec<Box<dyn QueryConfig>>,
+    resources: Vec<Box<dyn ResourceConfig>>,
 }
 
 impl App {
@@ -64,14 +22,12 @@ impl App {
     }
 
     fn add_component<T: Component>(&mut self, component: T) -> &mut Self {
-        self.querys.push(Box::new(Query {
-            components: vec![component],
-        }));
+        self.querys.push(Box::new(Query::new(vec![component])));
         self
     }
 
-    fn add_resource<T: Res>(&mut self, resource: Resource<T>) -> &mut Self {
-        self.resources.push(Box::new(resource));
+    fn add_resource<R: Res>(&mut self, resource: R) -> &mut Self {
+        self.resources.push(Box::new(Resource::new(resource)));
         self
     }
 
@@ -80,7 +36,7 @@ impl App {
         self
     }
 
-    fn call(&self) {
+    fn run(&self) {
         for system in &self.systems {
             let mut args: Vec<&dyn Any> = vec![];
 
@@ -112,18 +68,57 @@ fn system() {
 }
 
 fn print_query(query: &Query<Player>) {
-    for component in query.components.iter() {
-        println!("{:?}", component);
+    for component in query.components() {
+        println!("hp: {}", component.hp);
+        println!("name: {}", component.name);
     }
 }
 
 fn print_resource(resource: &Resource<Data>) {
-    println!("{:?}", resource.data);
+    let data = resource.data();
+    println!("value: {}", data.value);
 }
 
 fn to_arg_system(query: &Query<Player>, res: &Resource<Data>) {
-    println!("{:?}", query.components,);
-    println!("{:?}", res.data)
+    for component in query.components() {
+        println!("{:?}", component);
+    }
+    println!("{:?}", res.data());
+}
+
+fn to_query_system(player: &Query<Player>, enemy: &Query<Enemy>) {
+    for component in player.components() {
+        println!("{:?}", component);
+    }
+    for component in enemy.components() {
+        println!("{:?}", component);
+    }
+}
+
+fn main() {
+    App::new()
+        .add_component(Player {
+            name: String::from("Player"),
+            hp: 100,
+        })
+        .add_component(Enemy {
+            name: String::from("Enemy"),
+            hp: 50,
+        })
+        .add_resource(Data { value: 100 })
+        .add_system(Arg0System::from(system))
+        .add_system(Arg1System::from(print_query))
+        .add_system(Arg1System::from(print_resource))
+        .add_system(Arg2System::from(to_arg_system))
+        .add_system(Arg2System::from(to_query_system))
+        .run();
+}
+
+#[allow(dead_code)]
+#[derive(Debug)]
+struct Enemy {
+    name: String,
+    hp: u32,
 }
 
 #[derive(Debug)]
@@ -137,21 +132,6 @@ struct Data {
     value: u32,
 }
 
-fn main() {
-    App::new()
-        .add_component(Player {
-            name: String::from("Player"),
-            hp: 100,
-        })
-        .add_resource(Resource {
-            data: Data { value: 100 },
-        })
-        .add_system(Arg0System::from(system))
-        .add_system(Arg1System::from(print_query))
-        .add_system(Arg1System::from(print_resource))
-        .add_system(Arg2System::from(to_arg_system))
-        .call();
-}
-
 impl Component for Player {}
+impl Component for Enemy {}
 impl Res for Data {}
