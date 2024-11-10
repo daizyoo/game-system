@@ -6,7 +6,10 @@ use system::*;
 mod arg;
 mod system;
 
+struct World {}
+
 struct App {
+    world: World,
     systems: Vec<Box<dyn System>>,
     querys: Vec<Box<dyn QueryConfig>>,
     resources: Vec<Box<dyn ResourceConfig>>,
@@ -15,6 +18,7 @@ struct App {
 impl App {
     fn new() -> Self {
         App {
+            world: World {},
             systems: Vec::new(),
             querys: Vec::new(),
             resources: Vec::new(),
