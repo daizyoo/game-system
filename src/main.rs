@@ -1,71 +1,11 @@
-use std::any::Any;
-
+use app::App;
 use arg::*;
 use system::*;
 
+mod app;
 mod arg;
 mod system;
-
-struct World {}
-
-struct App {
-    world: World,
-    systems: Vec<Box<dyn System>>,
-    querys: Vec<Box<dyn QueryConfig>>,
-    resources: Vec<Box<dyn ResourceConfig>>,
-}
-
-impl App {
-    fn new() -> Self {
-        App {
-            world: World {},
-            systems: Vec::new(),
-            querys: Vec::new(),
-            resources: Vec::new(),
-        }
-    }
-
-    fn add_component<T: Component>(&mut self, component: T) -> &mut Self {
-        self.querys.push(Box::new(Query::new(vec![component])));
-        self
-    }
-
-    fn add_resource<R: Res>(&mut self, resource: R) -> &mut Self {
-        self.resources.push(Box::new(Resource::new(resource)));
-        self
-    }
-
-    fn add_system(&mut self, system: impl System + 'static) -> &mut Self {
-        self.systems.push(Box::new(system));
-        self
-    }
-
-    fn run(&self) {
-        for system in &self.systems {
-            let mut args: Vec<&dyn Any> = vec![];
-
-            for ty in system.arg_type() {
-                if let Some(arg) = &self.querys.iter().find(|q| q.get_type() == ty) {
-                    let arg = &***arg;
-                    let arg = arg.to_any();
-                    args.push(arg);
-                }
-
-                if let Some(arg) = &self.resources.iter().find(|q| q.get_type() == ty) {
-                    let arg = &***arg;
-                    let arg = arg.to_any();
-                    args.push(arg);
-                }
-            }
-
-            if args.len() != system.arg_count() {
-                panic!("Invalid argument count");
-            }
-
-            system.call(args);
-        }
-    }
-}
+mod world;
 
 fn system() {
     println!("no arg system")
